@@ -1,11 +1,14 @@
 import fs from 'fs/promises';
 import path from 'path';
+import { exec } from 'child_process';
 
 export class FileSystemController {
   constructor(targetDir) {
     this.targetDir = path.resolve(targetDir);
     this.contentDir = path.join(this.targetDir, 'content', 'items');
     this.configPath = path.join(this.targetDir, 'scripts', 'site-config.js');
+    this.publicDir = path.join(this.targetDir, 'public');
+    this.distDir = path.join(this.targetDir, 'dist');
   }
 
   async validateTarget() {
@@ -24,10 +27,9 @@ export class FileSystemController {
   async listArticles() {
     try {
       const entries = await fs.readdir(this.contentDir, { withFileTypes: true });
-      const mdFiles = entries
+      return entries
         .filter(e => e.isFile() && e.name.endsWith('.md'))
         .map(e => e.name.replace(/\.md$/, ''));
-      return mdFiles;
     } catch {
       return [];
     }
@@ -54,6 +56,53 @@ export class FileSystemController {
     return true;
   }
 
+  async listMedia() {
+    const media = [];
+    const scanDirs = [
+      { dir: path.join(this.publicDir, 'images'), prefix: '/images' },
+      { dir: path.join(this.publicDir, 'og'), prefix: '/og' }
+    ];
+
+    for (const { dir, prefix } of scanDirs) {
+      try {
+        const entries = await fs.readdir(dir, { withFileTypes: true, recursive: true });
+        for (const entry of entries) {
+          if (entry.isFile() && /\.(png|jpe?g|webp|avif|svg|gif)$/i.test(entry.name)) {
+            const relPath = path.relative(this.publicDir, path.join(entry.parentPath || dir, entry.name));
+            media.push({
+              name: entry.name,
+              url: `/${relPath.replace(/\\/g, '/')}`,
+              folder: prefix
+            });
+          }
+        }
+      } catch {}
+    }
+    return media;
+  }
+
+  async saveMedia(fileName, buffer) {
+    const safeName = path.basename(fileName).replace(/[^a-zA-Z0-9\._-]/g, '');
+    const targetFolder = path.join(this.publicDir, 'images', 'uploads');
+    await fs.mkdir(targetFolder, { recursive: true });
+    const fullPath = path.join(targetFolder, safeName);
+    await fs.writeFile(fullPath, buffer);
+    return `/images/uploads/${safeName}`;
+  }
+
+  async runBuild() {
+    return new Promise((resolve) => {
+      exec('npx vite build', { cwd: this.targetDir, timeout: 60000 }, (err, stdout, stderr) => {
+        resolve({
+          success: !err,
+          stdout: stdout || '',
+          stderr: stderr || '',
+          distExists: true
+        });
+      });
+    });
+  }
+
   async readConfig() {
     try {
       const raw = await fs.readFile(this.configPath, 'utf8');
@@ -77,9 +126,7 @@ export class FileSystemController {
     let raw = await fs.readFile(this.configPath, 'utf8');
     const updateVal = (name, val) => {
       const regex = new RegExp(`(export\\s+const\\s+${name}\\s*=\\s*['"\`])[^'"\`]*(['"\`];?)`);
-      if (regex.test(raw)) {
-        raw = raw.replace(regex, `$1${val}$2`);
-      }
+      if (regex.test(raw)) raw = raw.replace(regex, `$1${val}$2`);
     };
     if (config.siteUrl) updateVal('SITE_URL', config.siteUrl);
     if (config.siteDomain) updateVal('SITE_DOMAIN', config.siteDomain);

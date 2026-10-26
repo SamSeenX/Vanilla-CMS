@@ -1,5 +1,9 @@
 import { renderFileTree } from './file-tree.js';
 import { renderSimpleMarkdown } from './editor.js';
+import { setupToolbar, insertMediaTag } from './toolbar.js';
+import { setupMediaModal } from './media-modal.js';
+import { setupBuildConsole } from './build-console.js';
+import { showToast } from './toast.js';
 
 let articles = [];
 let activeSlug = null;
@@ -18,32 +22,48 @@ const saveBtn = document.getElementById('btn-save');
 const deleteBtn = document.getElementById('btn-delete');
 const newBtn = document.getElementById('btn-new-article');
 
+const mediaModal = setupMediaModal((url, name) => {
+  insertMediaTag(bodyInput, url, name, updatePreview);
+  showToast(`Inserted ${name} into editor`, 'success');
+});
+
+setupToolbar(bodyInput, () => mediaModal.openModal(), updatePreview);
+setupBuildConsole();
+
 async function loadArticles() {
-  const res = await fetch('/api/articles');
-  const data = await res.json();
-  articles = data.articles || [];
-  renderFileTree(treeContainer, articles, activeSlug, selectArticle);
+  try {
+    const res = await fetch('/api/articles');
+    const data = await res.json();
+    articles = data.articles || [];
+    renderFileTree(treeContainer, articles, activeSlug, selectArticle);
+  } catch {
+    showToast('Failed to load articles from site', 'error');
+  }
 }
 
 async function selectArticle(slug) {
   activeSlug = slug;
   renderFileTree(treeContainer, articles, activeSlug, selectArticle);
 
-  const res = await fetch(`/api/articles/${slug}`);
-  const post = await res.json();
+  try {
+    const res = await fetch(`/api/articles/${slug}`);
+    const post = await res.json();
 
-  titleInput.value = post.metadata.title || '';
-  slugInput.value = post.slug || '';
-  catInput.value = post.metadata.category || '';
-  dateInput.value = post.metadata.publishedDate || '';
-  descInput.value = post.metadata.description || '';
-  bodyInput.value = post.content || '';
+    titleInput.value = post.metadata.title || '';
+    slugInput.value = post.slug || '';
+    catInput.value = post.metadata.category || '';
+    dateInput.value = post.metadata.publishedDate || '';
+    descInput.value = post.metadata.description || '';
+    bodyInput.value = post.content || '';
 
-  updatePreview();
-  indicator.textContent = `Editing: ${post.metadata.title || slug}`;
-  editorWrapper.style.display = 'flex';
-  saveBtn.style.display = 'inline-flex';
-  deleteBtn.style.display = 'inline-flex';
+    updatePreview();
+    indicator.textContent = `Editing: ${post.metadata.title || slug}`;
+    editorWrapper.style.display = 'flex';
+    saveBtn.style.display = 'inline-flex';
+    deleteBtn.style.display = 'inline-flex';
+  } catch {
+    showToast(`Error opening ${slug}`, 'error');
+  }
 }
 
 function updatePreview() {
@@ -75,31 +95,45 @@ saveBtn.addEventListener('click', async () => {
 
   saveBtn.disabled = true;
   saveBtn.textContent = 'Saving...';
-  const res = await fetch('/api/articles', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-  saveBtn.disabled = false;
-  saveBtn.textContent = 'Save Post';
+  try {
+    const res = await fetch('/api/articles', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Save Post';
 
-  if (res.ok) {
-    activeSlug = slug;
-    await loadArticles();
-    indicator.textContent = `Saved: ${payload.metadata.title}`;
+    if (res.ok) {
+      activeSlug = slug;
+      await loadArticles();
+      indicator.textContent = `Saved: ${payload.metadata.title}`;
+      showToast('Article saved successfully!', 'success');
+    } else {
+      showToast('Error saving article', 'error');
+    }
+  } catch {
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Save Post';
+    showToast('Failed to save article', 'error');
   }
 });
 
 deleteBtn.addEventListener('click', async () => {
-  if (!confirm(`Are you sure you want to delete "${activeSlug}.md"?`)) return;
-  const res = await fetch(`/api/articles/${activeSlug}`, { method: 'DELETE' });
-  if (res.ok) {
-    activeSlug = null;
-    editorWrapper.style.display = 'none';
-    saveBtn.style.display = 'none';
-    deleteBtn.style.display = 'none';
-    indicator.textContent = 'Select an article to edit';
-    await loadArticles();
+  if (!confirm(`Delete "${activeSlug}.md"? This cannot be undone.`)) return;
+  try {
+    const res = await fetch(`/api/articles/${activeSlug}`, { method: 'DELETE' });
+    if (res.ok) {
+      activeSlug = null;
+      editorWrapper.style.display = 'none';
+      saveBtn.style.display = 'none';
+      deleteBtn.style.display = 'none';
+      indicator.textContent = 'Select an article to edit';
+      showToast('Article deleted', 'info');
+      await loadArticles();
+    }
+  } catch {
+    showToast('Failed to delete article', 'error');
   }
 });
 
@@ -117,6 +151,7 @@ newBtn.addEventListener('click', () => {
   editorWrapper.style.display = 'flex';
   saveBtn.style.display = 'inline-flex';
   deleteBtn.style.display = 'none';
+  showToast('Ready for new article', 'info');
 });
 
 loadArticles();

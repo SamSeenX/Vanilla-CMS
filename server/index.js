@@ -20,19 +20,23 @@ const MIME_TYPES = {
   '.js': 'application/javascript',
   '.json': 'application/json',
   '.svg': 'image/svg+xml',
-  '.png': 'image/png'
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.avif': 'image/avif'
 };
 
-async function serveStaticFile(res, filePath) {
+async function serveFile(res, filePath) {
   try {
-    const ext = path.extname(filePath);
+    const ext = path.extname(filePath).toLowerCase();
     const contentType = MIME_TYPES[ext] || 'application/octet-stream';
     const content = await fs.readFile(filePath);
     res.writeHead(200, { 'Content-Type': contentType });
     res.end(content);
   } catch {
     res.writeHead(404, { 'Content-Type': 'text/plain' });
-    res.end('File not found');
+    res.end('Not found');
   }
 }
 
@@ -57,23 +61,27 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // Proxy target site images and public assets
+  if (url.pathname.startsWith('/images/') || url.pathname.startsWith('/og/')) {
+    const targetAsset = path.join(fsCtrl.publicDir, url.pathname);
+    if (targetAsset.startsWith(fsCtrl.publicDir)) {
+      return await serveFile(res, targetAsset);
+    }
+  }
+
   let staticPath = path.join(PUBLIC_DIR, url.pathname === '/' ? 'index.html' : url.pathname);
   if (!staticPath.startsWith(PUBLIC_DIR)) {
     res.writeHead(403);
     return res.end('Forbidden');
   }
 
-  await serveStaticFile(res, staticPath);
+  await serveFile(res, staticPath);
 });
 
 server.listen(PORT, async () => {
   const isValid = await fsCtrl.validateTarget();
-  console.log(`\n⚡ Vanilla-CMS Companion Active: http://localhost:${PORT}`);
-  console.log(`📁 Target Directory: ${fsCtrl.targetDir}`);
-  if (!isValid) {
-    console.warn(`⚠️  Warning: Target does not appear to have 'content/items/' directory.`);
-  } else {
-    console.log(`✅ Connected to VanillaSSG site content successfully.`);
-  }
+  console.log(`\n⚡ Vanilla-CMS Active: http://localhost:${PORT}`);
+  console.log(`📁 Target: ${fsCtrl.targetDir}`);
+  if (!isValid) console.warn(`⚠️  Warning: Target does not have 'content/items/'`);
   console.log(`Press Ctrl+C to stop.\n`);
 });

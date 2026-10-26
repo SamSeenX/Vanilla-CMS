@@ -7,19 +7,20 @@
   <link rel="stylesheet" href="/styles/tokens.css">
   <link rel="stylesheet" href="/styles/layout.css">
   <link rel="stylesheet" href="/styles/editor.css">
+  <link rel="stylesheet" href="/styles/toolbar.css">
+  <link rel="stylesheet" href="/styles/modal.css">
+  <link rel="stylesheet" href="/styles/toast.css">
 </head>
 <body>
   <aside class="sidebar">
     <div class="sidebar-header">
       <div class="brand">
         <span>⚡ Vanilla-CMS</span>
-        <span class="brand-badge">LOCAL</span>
+        <span class="brand-badge">STUDIO</span>
       </div>
       <button id="btn-new-article" class="btn btn-primary" title="Create New Post">+</button>
     </div>
-    <div class="file-tree-container" id="file-tree">
-      <!-- Injected by file-tree.js -->
-    </div>
+    <div class="file-tree-container" id="file-tree"></div>
   </aside>
 
   <main class="main-content">
@@ -27,7 +28,8 @@
       <div id="active-article-indicator" style="font-size: 0.9rem; font-weight: 600;">
         Select an article to edit
       </div>
-      <div style="display: flex; gap: 0.5rem;">
+      <div style="display: flex; gap: 0.5rem; align-items: center;">
+        <button id="btn-trigger-build" class="btn" style="background: var(--bg-hover); border: 1px solid var(--border-color); color: var(--text-primary);">⚡ Build Site</button>
         <button id="btn-delete" class="btn btn-danger" style="display: none;">Delete</button>
         <button id="btn-save" class="btn btn-primary" style="display: none;">Save Post</button>
       </div>
@@ -35,7 +37,6 @@
 
     <div class="editor-container" id="editor-wrapper" style="display: none;">
       <div class="pane pane-code">
-        <div class="pane-header">Frontmatter & Markdown</div>
         <div class="meta-grid">
           <div class="form-group">
             <label for="meta-title">Title</label>
@@ -58,6 +59,22 @@
             <textarea id="meta-desc" rows="2" placeholder="Brief summary for SEO..."></textarea>
           </div>
         </div>
+
+        <div class="editor-toolbar">
+          <button id="tool-bold" class="tool-btn" title="Bold"><b>B</b></button>
+          <button id="tool-italic" class="tool-btn" title="Italic"><i>I</i></button>
+          <div class="tool-divider"></div>
+          <button id="tool-h2" class="tool-btn" title="Heading 2">H2</button>
+          <button id="tool-h3" class="tool-btn" title="Heading 3">H3</button>
+          <div class="tool-divider"></div>
+          <button id="tool-quote" class="tool-btn" title="Quote">❝</button>
+          <button id="tool-list" class="tool-btn" title="List">• List</button>
+          <button id="tool-code" class="tool-btn" title="Code">&lt;/&gt;</button>
+          <button id="tool-link" class="tool-btn" title="Link">🔗</button>
+          <div class="tool-divider"></div>
+          <button id="tool-media" class="tool-btn" style="color: var(--accent);" title="Insert Media">🖼 Add Media</button>
+        </div>
+
         <textarea id="body-content" class="code-textarea" placeholder="Write markdown body content here..."></textarea>
       </div>
 
@@ -67,6 +84,38 @@
       </div>
     </div>
   </main>
+
+  <!-- Media Modal -->
+  <div class="modal-backdrop" id="media-modal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <span class="modal-title">Media Library & Asset Uploader</span>
+        <button id="btn-close-media" class="tool-btn" style="font-size: 1.1rem;">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="dropzone" id="media-dropzone">
+          <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">📁</div>
+          <div style="font-weight: 600;">Drag & drop image here, or click to browse</div>
+          <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Supports PNG, JPEG, WebP, AVIF, SVG</div>
+          <input type="file" id="file-upload-input" accept="image/*" style="display: none;">
+        </div>
+        <div class="media-grid" id="media-grid-container"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Build Modal -->
+  <div class="modal-backdrop" id="build-modal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <span class="modal-title">⚡ Static Site Build Console</span>
+        <button id="btn-close-build" class="tool-btn" style="font-size: 1.1rem;">✕</button>
+      </div>
+      <div class="modal-body">
+        <pre class="build-console" id="build-output"></pre>
+      </div>
+    </div>
+  </div>
 
   <script type="module" src="/js/app.js"></script>
 </body>

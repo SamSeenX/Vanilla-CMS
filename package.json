@@ -1,0 +1,23 @@
+{
+  "name": "vanilla-cms",
+  "version": "1.0.0",
+  "description": "Zero-dependency local visual editor and content management dashboard for VanillaSSG sites",
+  "type": "module",
+  "main": "server/index.js",
+  "bin": {
+    "vanilla-cms": "bin/vanilla-cms.js"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node server/index.js"
+  },
+  "keywords": [
+    "cms",
+    "vanillajs",
+    "markdown",
+    "ssg",
+    "static-site-generator"
+  ],
+  "author": "SamSeen",
+  "license": "MIT"
+}
